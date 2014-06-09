@@ -579,7 +579,10 @@ app.factory('$fileUploader', ['$compile', '$rootScope', '$http', '$window', func
         /**
          * Uploads a item
          */
-        upload: function() {
+        upload: function(options) {
+            // reset options
+            // modify by ysyun
+            angular.extend(this, options);
             this.uploader.uploadItem(this);
         },
         /**
