@@ -1,8 +1,8 @@
 {
     "name": "angular-file-upload-mobicon",
-    "version": "0.5.9",
-    "homepage": "https://github.com/mobiconsoft/angular-file-upload-mobicon",
-    "description": "Angular File Upload is a module for the AngularJS framework and add item.upload(options)",
+    "version": "0.6.0",
+    "homepage": "https://github.com/StudyGPS-Company/angular-file-upload-studygps",
+    "description": "Angular File Upload is a module for the AngularJS and add item.upload(options), preview image",
     "author": {
         "name": "nerv",
         "url": "https://github.com/nervgh"

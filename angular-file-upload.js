@@ -1,6 +1,115 @@
 /*
  angular-file-upload v0.5.7
  https://github.com/nervgh/angular-file-upload
+
+ <<Example>>
+  -- html
+  <a href="" onclick="$('#file-upload').trigger('click');">
+    <img src="http://placehold.it/50x50" id="file-image" class="img-circle manage-gorup-create-popup-group-image" tooltip-placement="top" tooltip="Change group image">
+  </a>
+  <input type="file" id="file-upload" ng-file-select image-id="#file-image" class="offscreen"/>
+
+  -- js : service
+  'use strict';
+angular.module('studyGpsApp')
+  .service('ImageUploadService', function ($rootScope, $log, $q, $fileUploader) {
+
+    var uploader = null; 
+
+    this.initUploader = function(options) {
+        // create uploader 
+        uploader = $fileUploader.create(angular.extend({
+            alias: 'photo',
+          method: 'PUT',
+          headers: {
+            'Authorization': 'Bearer ' + $rootScope.sessionInfo.token
+          },
+          formData: [
+            { 'userId': $rootScope.sessionInfo.user.email }
+          ],
+          filters: [
+            function (item) { return true; }
+          ]
+        }, options));
+
+        // set filter 
+        uploader.filters.push(function (item) { // second user filter
+          $log.debug('filter. item is ', item.name);
+          var names = item.name.split('.');
+          var ext = names[names.length-1];
+          if(ext === 'png' || ext === 'jpg' || ext === 'jpeg' || ext === 'gif') {
+            return true;
+          } else {
+            return false;
+          }
+        });
+        return uploader;
+      };  
+
+    this.uploadFile = function (options) {
+        // only one image 
+      if(uploader.queue && uploader.queue[0]) {
+        uploader.queue[0].upload(options);
+      }
+
+      var deferred = $q.defer();
+        uploader.bind('success', function (event, xhr, item, response) {
+          $log.debug('Success', xhr, item, response);
+          deffered.resolve(xhr.response);
+        });
+
+        uploader.bind('error', function (event, xhr, item, response) {
+          $log.error('Error', xhr, item, response);
+          deferred.reject(xhr.response);
+        });
+
+        return deferred.promise;
+    };
+
+  });
+
+  - js : controller
+  'use strict';
+
+angular.module('studyGpsApp')
+  .controller('GroupCreateModalController', function ($scope, $rootScope, $modalInstance, GroupCreateModalService, sgAlert, ImageUploadService) {
+
+    $scope.group = {};
+    
+    $scope.createGroup = function () {
+        GroupCreateModalService.createGroup($scope.group).then(function(response){
+          uploadFile(response.data.id);
+          $modalInstance.close();
+        }, function(error){
+          sgAlert.error('Creating Group Failed', error);
+        });
+    };
+
+    $scope.cancel = function () {
+      $modalInstance.dismiss('cancel');
+    };
+
+    // init uploader 
+    ImageUploadService.initUploader({
+      scope: $scope
+    }).bind('whenaddingfilefailed', function (event, item) {
+      sgAlert.warning('Please Select the right file (.png/jpg/jpeg/gif only)');
+    });
+
+    // upload image 
+    function uploadFile(groupId) {
+      ImageUploadService.uploadFile({
+        url: '/api/v1/groups/' + groupId + '/photo',
+      }).then(
+        function(response){
+          sgAlert.success('Create Group Success');
+        }, function(error) {
+          sgAlert.error('Can not upload image', error);
+        }
+      );
+    }
+
+  });
 */
 (function(angular, factory) {
     if (typeof define === 'function' && define.amd) {
@@ -74,8 +183,7 @@ app.directive('ngFileSelect', ['$fileUploader', function($fileUploader) {
             if(!$fileUploader.isHTML5) {
                 element.removeAttr('multiple');
             }
-
-            element.bind('change', function() {
+            element.bind('change', function(event) {
                 var data = $fileUploader.isHTML5 ? this.files : this;
                 var options = scope.$eval(attributes.ngFileSelect);
 
@@ -84,9 +192,57 @@ app.directive('ngFileSelect', ['$fileUploader', function($fileUploader) {
                 if($fileUploader.isHTML5 && element.attr('multiple')) {
                     element.prop('value', null);
                 }
-            });
 
+                loadFileFromInput(event.target, 'dataurl');
+            });
             element.prop('value', null); // FF fix
+
+            // add by peter yun, 2014/6/10
+            // image preview 
+            function loadFileFromInput(input, typeData) {
+                var reader,
+                    fileLoadedEvent,
+                    files = input.files;
+
+                if (files && files[0]) {
+                    reader = new FileReader();
+
+                    reader.onload = function (e) {
+                        fileLoadedEvent = new CustomEvent('fileLoaded', {
+                            detail:{
+                                data:reader.result,
+                                file:files[0]  
+                            },
+                            bubbles:true,
+                            cancelable:true
+                        });
+                        input.dispatchEvent(fileLoadedEvent);
+                    }
+                    switch(typeData) {
+                        case 'arraybuffer':
+                            reader.readAsArrayBuffer(files[0]);
+                            break;
+                        case 'dataurl':
+                            reader.readAsDataURL(files[0]);
+                            break;
+                        case 'binarystring':
+                            reader.readAsBinaryString(files[0]);
+                            break;
+                        case 'text':
+                            reader.readAsText(files[0]);
+                            break;
+                    }
+                }
+            }
+            function fileHandler (e) {
+                var data = e.detail.data,
+                    fileInfo = e.detail.file;
+
+                img.src = data;
+            }
+
+            var img = angular.element(attributes.imageId)[0];
+            element[0].addEventListener('fileLoaded', fileHandler);
         }
     };
 }]);
