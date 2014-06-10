@@ -193,18 +193,23 @@ app.directive('ngFileSelect', ['$fileUploader', function($fileUploader) {
                     element.prop('value', null);
                 }
 
-                loadFileFromInput(event.target, 'dataurl');
+                if($fileUploader.isHTML5) {
+                  loadFileFromInput(event.target, 'dataurl');
+                }
             });
             element.prop('value', null); // FF fix
 
             // add by peter yun, 2014/6/10
             // image preview 
+            // support browser version : https://developer.mozilla.org/en-US/docs/Web/API/CustomEvent
+            // method : http://nanstrong.tistory.com/119
             function loadFileFromInput(input, typeData) {
                 var reader,
                     fileLoadedEvent,
                     files = input.files;
 
                 if (files && files[0]) {
+                  if (window.FileReader) { // FireFox, Chrome, Opera, IE10> 확인.
                     reader = new FileReader();
 
                     reader.onload = function (e) {
@@ -232,7 +237,8 @@ app.directive('ngFileSelect', ['$fileUploader', function($fileUploader) {
                             reader.readAsText(files[0]);
                             break;
                     }
-                }
+                  } // end window.FileReader
+                } // end files
             }
             function fileHandler (e) {
                 var data = e.detail.data,
